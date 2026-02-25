@@ -3,29 +3,14 @@ import pandas as pd
 
 st.title("CRI Pump Selector")
 
-# ---------- LOAD EXCEL ----------
-df = pd.read_excel("specs cri.xlsx", header=1)
-
-# remove empty rows
-df = df.dropna(how="all")
-
-# rename columns for easy coding
-df.columns = [
-    "Power",
-    "Stage",
-    "MaxHead",
-    "MinHead",
-    "MaxFlow",
-    "MinFlow",
-    "DeliverySize",
-    "Phase"
-]
+# ---------- LOAD DATA ----------
+df = pd.read_csv("clean_pumps.csv")
 
 # convert numeric columns
 for col in df.columns:
     df[col] = pd.to_numeric(df[col], errors="ignore")
 
-# ---------- USER INPUT ----------
+# ---------- INPUT ----------
 st.sidebar.header("Enter Requirements")
 
 bore_depth = st.sidebar.number_input("Bore Depth (m)", 1, 500)
@@ -61,15 +46,14 @@ st.write("Required Flow:", flow,"m³/hr")
 
 # ---------- FILTER ----------
 results = df[
-    (df.MinHead <= total_head) &
-    (df.MaxHead >= total_head) &
-    (df.MinFlow <= flow) &
-    (df.MaxFlow >= flow) &
-    (df.Phase == phase)
+    (df["min head"] <= total_head) &
+    (df["max head"] >= total_head) &
+    (df["min flow"] <= flow) &
+    (df["max flow"] >= flow) &
+    (df["phase"] == phase)
 ]
 
-# sort best match first
-results = results.sort_values(by="Power")
+results = results.sort_values(by="power")
 
 # ---------- OUTPUT ----------
 st.subheader("Recommended Pumps")
