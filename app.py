@@ -111,6 +111,7 @@ st.sidebar.write("Get a professional quote or technical advice.")
 st.sidebar.link_button("Chat on WhatsApp", "https://wa.me/919500401115")
 st.sidebar.write("**Toll Free:** 1800 121 1243")
 
-if st.sidebar.button("Show Shop Location"):
-    st.sidebar.success("📍 Your Shop Address Here\nOpen: 9 AM - 8 PM")
-    st.balloons() # Animated indicator for engagement
+if st.sidebar.button("Shop Location"):
+    st.sidebar.success("📍 Mahavir Pumps & Hardware\n 
+M G Road Raipur, Raipur-Chhattisgarh\n 📞 7041450979 \nOpen: 9 AM - 8 PM")
+   
