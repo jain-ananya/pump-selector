@@ -2,75 +2,115 @@ import streamlit as st
 import pandas as pd
 import time
 
-# 1. Page Configuration & Custom CSS for Card Design
-st.set_page_config(page_title="CRI Pump Selector", layout="wide")
+# 1. Page Configuration & Professional Theme
+st.set_page_config(page_title="CRI Pump Selector", layout="wide", page_icon="🚀")
 
+# Enhanced Custom CSS for Cards and Hover Effects
 st.markdown("""
     <style>
     .pump-card {
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        padding: 20px;
-        border: 1px solid #ddd;
-        margin-bottom: 10px;
-        transition: transform 0.2s;
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 25px;
+        border: 1px solid #eaeaea;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
     }
     .pump-card:hover {
-        transform: scale(1.02);
+        transform: translateY(-5px);
         border-color: #e63946;
+        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
     }
     .top-badge {
         background-color: #e63946;
         color: white;
-        padding: 2px 8px;
-        border-radius: 5px;
-        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
         font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .card-title {
+        color: #1d3557;
+        margin-top: 10px;
+        font-size: 22px;
+        font-weight: 700;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Load Data
+# 2. Optimized Data Loading
 @st.cache_data
 def load_data():
-    df = pd.read_csv('clean_pumps.csv')
-    df.columns = df.columns.str.strip()
-    return df
+    try:
+        df = pd.read_csv('clean_pumps.csv')
+        df.columns = df.columns.str.strip()
+        return df
+    except FileNotFoundError:
+        st.error("Missing 'clean_pumps.csv' file.")
+        st.stop()
 
-try:
-    df = load_data()
-except:
-    st.error("Please ensure 'clean_pumps.csv' is in your GitHub repository.")
-    st.stop()
+df = load_data()
 
-# 3. Sidebar Inputs
-st.sidebar.image("https://www.crigroups.com/wp-content/uploads/2018/05/logo.png", width=150) # Use CRI logo
-st.sidebar.header("Step 1: Selection")
-pump_types = df['Pump Type'].unique()
-selected_type = st.sidebar.multiselect("Pump Category", options=pump_types, default=pump_types[0])
+# 3. Enhanced Sidebar
+with st.sidebar:
+    st.image("https://www.crigroups.com/wp-content/uploads/2018/05/logo.png", use_container_width=True)
+    st.divider()
+    
+    st.header("🎯 Pump Finder")
+    
+    # SINGLE DROP DOWN for Category (as requested)
+    pump_types = df['Pump Type'].unique().tolist()
+    selected_type = st.selectbox(
+        "Choose Pump Category", 
+        options=pump_types,
+        help="Select the general type of pump you are looking for."
+    )
 
-st.sidebar.header("Step 2: Well Dimensions")
-depth = st.sidebar.number_input("Borewell/Well Depth (meters)", min_value=0, value=40)
-tank_height = st.sidebar.number_input("Overhead Tank Height (meters)", min_value=0, value=10)
+    st.subheader("📏 Dimensions")
+    depth = st.number_input("Borewell Depth (meters)", min_value=0, value=40)
+    tank_height = st.number_input("Tank Height (meters)", min_value=0, value=10)
+    
+    st.divider()
+    
+    # BETTER SHOP LOCATION (Popover style)
+    st.subheader("📍 Visit Our Store")
+    with st.popover("Show Store Details", use_container_width=True):
+        st.markdown("""
+        **Mahavir Pumps & Hardware**
+        M G Road Raipur, Raipur-Chhattisgarh
+        
+        📞 **7041450979**
+        ⏰ **9 AM - 8 PM** (Mon-Sat)
+        """)
+        st.link_button("Open in Google Maps", "https://www.google.com/maps/search/Mahavir+Pumps+Hardware+Raipur")
 
-# 4. Calculation Logic
+    # CONTACT BUTTONS
+    st.subheader("📞 Quick Support")
+    st.link_button("Chat on WhatsApp", "https://wa.me/919500401115", use_container_width=True)
+    st.write("Toll Free: `1800 121 1243`")
+
+# 4. Main App Logic
 total_head = (depth + tank_height) * 1.10
 
-# 5. Main UI Header
 st.title("🚀 CRI Pump Smart Selector")
-st.write(f"Finding recommendations for a **{total_head:.1f}m** head requirement.")
+st.write(f"Showing best matches for **{selected_type}** at **{total_head:.1f}m** total head.")
 
-# Animated loading indicator
-with st.spinner('Analyzing pump performance curves...'):
-    time.sleep(1) # Simulation for animation effect
+# Progress indicator
+with st.status("Analyzing technical data...", expanded=False) as status:
+    time.sleep(0.8)
+    # Filtering Logic
     recommendations = df[
-        (df['Pump Type'].isin(selected_type)) & 
+        (df['Pump Type'] == selected_type) & 
         (df['Max Head (m)'] >= total_head)
     ].sort_values(by=['HP', 'Max Head (m)'])
+    status.update(label="Analysis Complete!", state="complete", expanded=False)
 
-# 6. Top 3 Suggestions (Card Style)
+# 5. Top 3 Results (Card View)
 if not recommendations.empty:
-    st.subheader("⭐ Top 3 Recommendations")
+    st.subheader("⭐ Recommended Top Matches")
     top_3 = recommendations.head(3)
     
     cols = st.columns(3)
@@ -78,39 +118,36 @@ if not recommendations.empty:
         with cols[i]:
             st.markdown(f"""
                 <div class="pump-card">
-                    <span class="top-badge">Rank #{i+1}</span>
-                    <h3>{row['Series']} {row['Model']}</h3>
-                    <p><b>Power:</b> {row['HP']} HP ({row['kW']} kW)</p>
-                    <p><b>Max Head:</b> {row['Max Head (m)']} meters</p>
-                    <p><b>Outlet:</b> {row['Outlet Size (mm)']} mm</p>
+                    <span class="top-badge">Choice #{i+1}</span>
+                    <div class="card-title">{row['Series']}</div>
+                    <p style="color: #457b9d; font-weight: 600;">Model: {row['Model']}</p>
+                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+                    <p>⚡ <b>Power:</b> {row['HP']} HP</p>
+                    <p>🏗️ <b>Max Head:</b> {row['Max Head (m)']}m</p>
+                    <p>🚰 <b>Outlet:</b> {row['Outlet Size (mm)']}mm</p>
                 </div>
             """, unsafe_allow_html=True)
-            if st.button(f"View Specs for {row['Model']}", key=f"btn_{row['Model']}"):
-                st.info(f"**Application:** {row['Applications']}")
+            
+            with st.expander(f"More Specs for {row['Model']}"):
+                st.write(f"**Applications:** {row['Applications']}")
+                st.write(f"**Power (kW):** {row['kW']}")
 
-    # 7. Comparison View
+    # 6. Comparison Table
     st.divider()
-    st.subheader("🔍 Pump Comparison Tool")
-    compare_models = st.multiselect("Select pumps to compare side-by-side:", 
-                                     options=recommendations['Model'].tolist(),
-                                     default=top_3['Model'].tolist()[:2])
+    st.subheader("🔍 Side-by-Side Comparison")
+    compare_models = st.multiselect(
+        "Select specific models to compare details:", 
+        options=recommendations['Model'].tolist(),
+        default=top_3['Model'].tolist()
+    )
     
     if compare_models:
         compare_df = df[df['Model'].isin(compare_models)].set_index('Model')
-        st.table(compare_df[['Series', 'HP', 'kW', 'Max Head (m)', 'Outlet Size (mm)']])
+        st.dataframe(
+            compare_df[['Series', 'HP', 'Max Head (m)', 'Outlet Size (mm)', 'Applications']],
+            use_container_width=True
+        )
 
 else:
-    st.error("No exact matches found. Try reducing the depth or selecting another pump category.")
-
-# 8. Contact Section
-st.sidebar.divider()
-st.sidebar.subheader("📞 Need Expert Help?")
-st.sidebar.write("Get a professional quote or technical advice.")
-
-# Official CRI contact info from catalog
-st.sidebar.link_button("Chat on WhatsApp", "https://wa.me/919500401115")
-st.sidebar.write("**Toll Free:** 1800 121 1243")
-
-if st.sidebar.button("Shop Location"):
-    st.sidebar.success("📍 Mahavir Pumps & Hardware\n M G Road Raipur, Raipur-Chhattisgarh\n 📞 7041450979 \nOpen: 9 AM - 8 PM")
-   
+    st.warning(f"No {selected_type} pumps found for a {total_head:.1f}m depth. Try selecting a different category or reducing the depth requirement.")
+    st.info("💡 Tip: Submersible pumps typically handle greater depths than Jet pumps.")
