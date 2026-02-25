@@ -1,64 +1,51 @@
 import streamlit as st
 import pandas as pd
 
-st.title("CRI Pump Selector")
+# Load the pump data
+df = pd.read_csv('clean_pumps.csv')
 
-# ---------- LOAD DATA ----------
-df = pd.read_csv("clean_pumps.csv")
+st.title("CRI Pump Selector - Hardware Shop Helper")
+st.write("Enter your requirements below to find the best CRI pump for your borewell.")
 
-# convert numeric columns
-for col in df.columns:
-    df[col] = pd.to_numeric(df[col], errors="ignore")
+# Sidebar for Inputs
+st.sidebar.header("User Requirements")
+depth = st.sidebar.number_input("Borewell Depth (meters)", min_value=0, value=50)
+tank_height = st.sidebar.number_input("Overhead Tank Height (meters)", min_value=0, value=10)
+phase_req = st.sidebar.selectbox("Phase", options=[1, 3], index=0)
 
-# ---------- INPUT ----------
-st.sidebar.header("Enter Requirements")
+# Calculate Total Head (adding 10% for pipe friction)
+total_head = (depth + tank_height) * 1.10
+st.info(f"Calculated Total Head Requirement: **{total_head:.2f} meters**")
 
-bore_depth = st.sidebar.number_input("Bore Depth (m)", 1, 500)
-water_level = st.sidebar.number_input("Water Level (m)", 0, 500)
-tank_height = st.sidebar.number_input("Tank Height (m)", 0, 200)
-pipe_length = st.sidebar.number_input("Pipe Length (m)", 0, 500)
-
-usage = st.sidebar.selectbox(
-    "Usage Type",
-    ["Domestic", "Agriculture", "Drip"]
-)
-
-phase = st.sidebar.selectbox(
-    "Power Phase",
-    [1, 3]
-)
-
-# ---------- CALCULATIONS ----------
-vertical_lift = bore_depth - water_level
-friction_loss = pipe_length * 0.1
-total_head = vertical_lift + tank_height + friction_loss
-
-if usage == "Domestic":
-    flow = 1
-elif usage == "Agriculture":
-    flow = 3
-else:
-    flow = 2
-
-st.subheader("Calculated Requirements")
-st.write("Total Head:", round(total_head,2),"m")
-st.write("Required Flow:", flow,"m³/hr")
-
-# ---------- FILTER ----------
-results = df[
-    (df["min head"] <= total_head) &
-    (df["max head"] >= total_head) &
-    (df["min flow"] <= flow) &
-    (df["max flow"] >= flow) &
-    (df["phase"] == phase)
+# Filtering Logic
+# 1. Filter by Phase
+# 2. Total Head must be between min head and max head
+recommendations = df[
+    (df['phase'] == phase_req) & 
+    (df['min head'] <= total_head) & 
+    (df['max head'] >= total_head)
 ]
 
-results = results.sort_values(by="power")
-
-# ---------- OUTPUT ----------
+# Display Results
 st.subheader("Recommended Pumps")
-
-if results.empty:
-    st.warning("No suitable pump found")
+if not recommendations.empty:
+    # Sort by power (lower power is usually more energy efficient for same head)
+    recommendations = recommendations.sort_values(by='power')
+    
+    # Rename columns for better readability
+    display_df = recommendations.rename(columns={
+        'power': 'Power (HP)',
+        'stage': 'Stages',
+        'max head': 'Max Head (m)',
+        'max flow': 'Max Flow',
+        'del size': 'Pipe Size (mm)'
+    })
+    
+    st.write(f"We found **{len(display_df)}** matching pumps:")
+    st.dataframe(display_df[['Power (HP)', 'Stages', 'Max Head (m)', 'Pipe Size (mm)']])
+    
+    # Best Pick
+    best_pick = recommendations.iloc[0]
+    st.success(f"**Best Recommendation:** {best_pick['power']} HP Pump with {best_pick['stage']} stages.")
 else:
-    st.dataframe(results)
+    st.error("No pumps found for this depth. Please check the depth or consult a technician.")
