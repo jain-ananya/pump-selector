@@ -1,51 +1,51 @@
 import streamlit as st
 import pandas as pd
 
-# Load the pump data
+# Load the new pump data
+# Ensure the file is named 'clean_pumps.csv' on GitHub
 df = pd.read_csv('clean_pumps.csv')
 
-st.title("CRI Pump Selector - Hardware Shop Helper")
-st.write("Enter your requirements below to find the best CRI pump for your borewell.")
+# Clean column names (removes spaces like the previous error)
+df.columns = df.columns.str.strip()
 
-# Sidebar for Inputs
-st.sidebar.header("User Requirements")
-depth = st.sidebar.number_input("Borewell Depth (meters)", min_value=0, value=50)
+st.title("CRI Pump Selector")
+st.write("Find the perfect CRI pump for your home or farm.")
+
+# Sidebar Filters
+st.sidebar.header("Filter by Type")
+pump_types = df['Pump Type'].unique()
+selected_type = st.sidebar.multiselect("Select Pump Category", options=pump_types, default=pump_types)
+
+st.sidebar.header("Enter Your Requirements")
+depth = st.sidebar.number_input("Borewell/Well Depth (meters)", min_value=0, value=50)
 tank_height = st.sidebar.number_input("Overhead Tank Height (meters)", min_value=0, value=10)
-phase_req = st.sidebar.selectbox("Phase", options=[1, 3], index=0)
 
-# Calculate Total Head (adding 10% for pipe friction)
+# Calculate Total Head
 total_head = (depth + tank_height) * 1.10
-st.info(f"Calculated Total Head Requirement: **{total_head:.2f} meters**")
+st.info(f"Your requirement: ~**{total_head:.2f} meters** of vertical lift.")
 
 # Filtering Logic
-# 1. Filter by Phase
-# 2. Total Head must be between min head and max head
+# 1. Filter by User Selected Pump Types
+# 2. Filter by Max Head (The pump's Max Head must be greater than our requirement)
 recommendations = df[
-    (df['phase'] == phase_req) & 
-    (df['min head'] <= total_head) & 
-    (df['max head'] >= total_head)
+    (df['Pump Type'].isin(selected_type)) & 
+    (df['Max Head (m)'] >= total_head)
 ]
 
 # Display Results
-st.subheader("Recommended Pumps")
+st.subheader("Matching CRI Models")
 if not recommendations.empty:
-    # Sort by power (lower power is usually more energy efficient for same head)
-    recommendations = recommendations.sort_values(by='power')
+    # Sort by HP (lowest HP first for efficiency)
+    recommendations = recommendations.sort_values(by='HP')
     
-    # Rename columns for better readability
-    display_df = recommendations.rename(columns={
-        'power': 'Power (HP)',
-        'stage': 'Stages',
-        'max head': 'Max Head (m)',
-        'max flow': 'Max Flow',
-        'del size': 'Pipe Size (mm)'
-    })
+    # Select specific columns to show the user
+    display_cols = ['Series', 'Model', 'HP', 'Max Head (m)', 'Outlet Size (mm)', 'Applications']
     
-    st.write(f"We found **{len(display_df)}** matching pumps:")
-    st.dataframe(display_df[['Power (HP)', 'Stages', 'Max Head (m)', 'Pipe Size (mm)']])
+    st.dataframe(recommendations[display_cols], hide_index=True)
     
-    # Best Pick
-    best_pick = recommendations.iloc[0]
-    st.success(f"**Best Recommendation:** {best_pick['power']} HP Pump with {best_pick['stage']} stages.")
+    # Recommendation Highlight
+    best = recommendations.iloc[0]
+    st.success(f"**Top Pick:** {best['Series']} {best['Model']} ({best['HP']} HP)")
+    st.caption(f"**Best for:** {best['Applications']}")
 else:
-    st.error("No pumps found for this depth. Please check the depth or consult a technician.")
+    st.error("No pumps found for this depth. Please reduce the depth or contact your CRI dealer.")
